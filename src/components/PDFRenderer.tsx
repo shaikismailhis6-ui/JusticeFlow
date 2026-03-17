@@ -1,9 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as pdfjs from 'pdfjs-dist/build/pdf.mjs';
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Loader2, FileText, AlertTriangle, Download } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Loader2, FileText, AlertTriangle, Download, ShieldCheck } from 'lucide-react';
 import { motion } from 'motion/react';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 import { storage } from '../firebase';
 import { ref as storageRef, getBlob } from 'firebase/storage';
+
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 
 // Use a CDN for the worker to ensure it loads correctly and quickly
 pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.mjs`;
@@ -183,79 +189,87 @@ export default function PDFRenderer({ data, textContent }: PDFRendererProps) {
       )}
 
       {/* Rendering Area */}
-      <div className="flex-1 overflow-auto p-4 flex justify-center bg-surface/30 scrollbar-thin scrollbar-thumb-border-main scrollbar-track-transparent relative">
-        {loading ? (
-          <div className="flex flex-col items-center justify-center gap-6 absolute inset-0 bg-bg-deep/40 backdrop-blur-[2px] z-20">
-            <div className="relative">
-              <Loader2 className="w-12 h-12 text-brand-accent animate-spin" />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-2 h-2 bg-brand-accent rounded-full animate-pulse" />
-              </div>
-            </div>
-            <div className="text-center space-y-2">
-              <p className="text-[10px] font-bold text-text-main uppercase tracking-[0.3em] animate-pulse">Streaming Forensic Evidence...</p>
-              <p className="text-[9px] text-text-muted uppercase tracking-widest">Optimizing visual layers for judicial review</p>
-            </div>
-            
-            {/* Instant Text Preview during load */}
-            {textContent && (
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="max-w-xl w-full mx-4 p-6 bg-surface/90 border border-border-main rounded-2xl shadow-2xl overflow-hidden"
-              >
-                <div className="flex items-center gap-2 mb-4 border-b border-border-main pb-2">
-                  <FileText className="w-3 h-3 text-brand-accent" />
-                  <span className="text-[9px] font-bold text-brand-accent uppercase tracking-widest">Instant Text Recovery (Active)</span>
-                </div>
-                <div className="max-h-[150px] overflow-y-auto font-serif text-xs text-text-muted leading-relaxed whitespace-pre-wrap text-left mask-fade-bottom">
-                  {textContent}
-                </div>
-              </motion.div>
-            )}
-          </div>
-        ) : error ? (
-          <div className="flex flex-col items-center justify-center gap-4 p-10 text-center max-w-2xl w-full">
-            <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-2 shrink-0">
-              <AlertTriangle className="w-8 h-8 text-red-500" />
-            </div>
-            <p className="text-text-main font-bold">Forensic Rendering Failed</p>
-            <p className="text-text-muted text-xs leading-relaxed mb-4">{error}</p>
-            
-            <div className="flex gap-4">
-              <a 
-                href={data} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="px-6 py-2 bg-brand-accent text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-brand-accent/90 transition-all shadow-lg shadow-brand-accent/20"
-              >
-                Open Original
-              </a>
-              <button 
-                onClick={() => window.location.reload()}
-                className="px-6 py-2 border border-border-main text-text-muted rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-surface transition-all"
-              >
-                Retry
-              </button>
-            </div>
-            
-            {textContent && (
-              <div className="w-full mt-8 bg-surface/50 p-6 rounded-xl border border-border-main text-left overflow-y-auto max-h-[300px]">
-                <p className="text-[10px] font-bold text-brand-accent uppercase tracking-widest mb-4 flex items-center gap-2">
-                  <FileText className="w-4 h-4" />
-                  Recovered Text Content
-                </p>
-                <div className="font-serif text-sm text-text-main whitespace-pre-wrap leading-relaxed">
-                  {textContent}
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="relative">
-            <canvas ref={canvasRef} className="shadow-2xl rounded-sm max-w-full h-auto bg-white" />
+      <div className="flex-1 overflow-auto p-4 flex flex-col items-center bg-surface/30 scrollbar-thin scrollbar-thumb-border-main scrollbar-track-transparent relative">
+        {/* Subtle Progress Bar instead of blocking screen */}
+        {loading && (
+          <div className="absolute top-0 left-0 right-0 h-1 z-30 overflow-hidden">
+            <motion.div 
+              initial={{ x: '-100%' }}
+              animate={{ x: '100%' }}
+              transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
+              className="h-full w-full bg-brand-accent shadow-[0_0_10px_rgba(var(--color-brand-accent-rgb),0.5)]"
+            />
           </div>
         )}
+
+        {/* Instant Text Recovery - ALWAYS VISIBLE AND NON-BLOCKING */}
+        {textContent && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full max-w-4xl mb-8 p-8 bg-surface border border-border-main rounded-[2rem] shadow-xl overflow-hidden"
+          >
+            <div className="flex items-center justify-between mb-6 border-b border-border-main pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-brand-accent/10 rounded-lg">
+                  <FileText className="w-5 h-5 text-brand-accent" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-brand-accent uppercase tracking-[0.2em]">Judicial Intelligence</span>
+                  <h4 className="text-sm font-bold text-text-main uppercase tracking-widest">Instant Text Recovery</h4>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-1 bg-green-500/10 text-green-500 rounded-full text-[9px] font-bold uppercase tracking-widest">
+                <ShieldCheck className="w-3 h-3" />
+                Verified Content
+              </div>
+            </div>
+            <div className="font-serif text-sm text-text-main leading-relaxed whitespace-pre-wrap text-left pr-4">
+              {textContent}
+            </div>
+          </motion.div>
+        )}
+
+        {/* PDF Canvas Area */}
+        <div className="relative min-h-[500px] flex items-center justify-center w-full">
+          {loading && !pdf && (
+            <div className="flex flex-col items-center gap-3 py-20">
+              <Loader2 className="w-6 h-6 text-brand-accent animate-spin opacity-40" />
+              <p className="text-[9px] font-bold text-text-muted uppercase tracking-widest">Loading Visual Evidence...</p>
+            </div>
+          )}
+          
+          {error ? (
+            <div className="flex flex-col items-center justify-center gap-4 p-10 text-center max-w-2xl w-full">
+              <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-2 shrink-0">
+                <AlertTriangle className="w-8 h-8 text-red-500" />
+              </div>
+              <p className="text-text-main font-bold">Forensic Rendering Failed</p>
+              <p className="text-text-muted text-xs leading-relaxed mb-4">{error}</p>
+              
+              <div className="flex gap-4">
+                <a 
+                  href={data} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="px-6 py-2 bg-brand-accent text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-brand-accent/90 transition-all shadow-lg shadow-brand-accent/20"
+                >
+                  Open Original
+                </a>
+                <button 
+                  onClick={() => window.location.reload()}
+                  className="px-6 py-2 border border-border-main text-text-muted rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-surface transition-all"
+                >
+                  Retry
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className={cn("relative transition-opacity duration-500", loading ? "opacity-30" : "opacity-100")}>
+              <canvas ref={canvasRef} className="shadow-2xl rounded-sm max-w-full h-auto bg-white" />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
