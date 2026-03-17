@@ -5,8 +5,14 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Case } from '../types';
 import { Plus, Folder, Clock, ChevronRight, Trash2, Search, Edit2, Upload, FileText, X, Loader2, ShieldCheck, AlertCircle } from 'lucide-react';
 import { motion } from 'motion/react';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 import * as pdfjs from 'pdfjs-dist/build/pdf.mjs';
 import { analyzeLegalDocument } from '../services/gemini';
+
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 
 // Configure PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.mjs', import.meta.url).toString();
