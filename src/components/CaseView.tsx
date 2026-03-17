@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { analyzeLegalDocument, chatWithCase } from '../services/gemini';
 import ReactMarkdown from 'react-markdown';
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import * as pdfjs from 'pdfjs-dist/build/pdf.mjs';
@@ -43,10 +43,14 @@ export default function CaseView({ caseId, onBack }: CaseViewProps) {
 
   useEffect(() => {
     const fetchCase = async () => {
-      const docRef = doc(db, 'cases', caseId);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        setCaseData({ id: docSnap.id, ...docSnap.data() } as Case);
+      try {
+        const docRef = doc(db, 'cases', caseId);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setCaseData({ id: docSnap.id, ...docSnap.data() } as Case);
+        }
+      } catch (error) {
+        handleFirestoreError(error, OperationType.GET, `cases/${caseId}`);
       }
     };
     fetchCase();
@@ -56,6 +60,8 @@ export default function CaseView({ caseId, onBack }: CaseViewProps) {
       const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Document));
       setDocuments(docs);
       if (docs.length > 0 && !activeDoc) setActiveDoc(docs[0]);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'documents');
     });
 
     return unsubDocs;
@@ -126,11 +132,15 @@ export default function CaseView({ caseId, onBack }: CaseViewProps) {
           handleAnalyze(activeDoc, activeDoc.textContent || activeDoc.fileUrl, []);
         }
       }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'analyses');
     });
 
     const qChat = query(collection(db, 'chats'), where('documentId', '==', activeDoc.id), orderBy('createdAt', 'asc'));
     const unsubChat = onSnapshot(qChat, (snapshot) => {
       setChatMessages(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ChatMessage)));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'chats');
     });
 
     return () => {
@@ -241,7 +251,7 @@ export default function CaseView({ caseId, onBack }: CaseViewProps) {
         createdAt: serverTimestamp()
       });
     } catch (error) {
-      console.error('Analysis failed:', error);
+      handleFirestoreError(error, OperationType.WRITE, 'analyses');
     } finally {
       setIsAnalyzing(false);
     }
@@ -265,7 +275,7 @@ export default function CaseView({ caseId, onBack }: CaseViewProps) {
         createdAt: serverTimestamp()
       });
 
-      const response = await chatWithCase(activeDoc.fileUrl, [], userMsg);
+      const response = await chatWithCase(activeDoc.fileUrl, chatMessages, userMsg);
 
       await addDoc(collection(db, 'chats'), {
         documentId: activeDoc.id,
@@ -275,7 +285,7 @@ export default function CaseView({ caseId, onBack }: CaseViewProps) {
         createdAt: serverTimestamp()
       });
     } catch (error) {
-      console.error('Chat failed:', error);
+      handleFirestoreError(error, OperationType.WRITE, 'chats');
     } finally {
       setIsChatting(false);
     }
@@ -316,7 +326,7 @@ export default function CaseView({ caseId, onBack }: CaseViewProps) {
       doc.addPage();
       doc.setFontSize(16);
       doc.text('Chronological Timeline', 20, 20);
-      (doc as any).autoTable({
+      autoTable(doc, {
         startY: 30,
         head: [['Date', 'Event', 'Description']],
         body: analysis.timeline.map(e => [e.date, e.event, e.description]),
@@ -328,7 +338,7 @@ export default function CaseView({ caseId, onBack }: CaseViewProps) {
       doc.addPage();
       doc.setFontSize(16);
       doc.text('Evidence Audit (Forensics)', 20, 20);
-      (doc as any).autoTable({
+      autoTable(doc, {
         startY: 30,
         head: [['Description', 'Verdict', 'AI Prob', 'True Prob', 'Notes']],
         body: analysis.evidence_audit.map(r => [

@@ -4,8 +4,9 @@
  */
 
 import React, { useState, useEffect, Suspense, lazy } from 'react';
-import { auth, signInWithJudicial, logOut, db } from './firebase';
+import { auth, signInWithJudicial, logOut, db, handleFirestoreError, OperationType } from './firebase';
 import { onAuthStateChanged, User, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { Gavel, LogOut, Plus, FileText, MessageSquare, BarChart3, ChevronRight, Upload, Search, Download, ShieldCheck, Lock, User as UserIcon, AlertCircle, Scale, Loader2, Eye, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
@@ -43,7 +44,26 @@ function AppContent() {
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        // Sync user profile to Firestore
+        const userRef = doc(db, 'users', user.uid);
+        try {
+          const userDoc = await getDoc(userRef);
+          if (!userDoc.exists()) {
+            await setDoc(userRef, {
+              uid: user.uid,
+              displayName: user.displayName || 'Judicial Officer',
+              email: user.email,
+              role: user.email === 'shaikismailhis6@gmail.com' || user.email === 'judge@justiceflow.gov' ? 'admin' : 'judge',
+              photoURL: user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}`,
+              createdAt: serverTimestamp()
+            });
+          }
+        } catch (error) {
+          console.error('Error syncing user profile:', error);
+        }
+      }
       setUser(user);
       setLoading(false);
     });

@@ -29,50 +29,38 @@ export default function PDFRenderer({ data, textContent }: PDFRendererProps) {
         return;
       }
 
+      // If it's a URL, we can try to use the native browser renderer first
+      // which is much faster and avoids CORS issues for the JS layer.
+      if (data.startsWith('http')) {
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setError(null);
       try {
         let bytes: Uint8Array;
+        
+        console.log("PDFRenderer data (first 100 chars):", data.substring(0, 100));
+        // Check if it's a data URL or raw base64
+        const base64Match = data.match(/base64,(.*)$/);
+        const pureBase64 = base64Match ? base64Match[1] : data.trim();
 
-        if (data.startsWith('http')) {
-          try {
-            // Try fetching via Firebase Storage SDK first (more robust)
-            const fileRef = storageRef(storage, data);
-            const blob = await getBlob(fileRef);
-            const buffer = await blob.arrayBuffer();
-            bytes = new Uint8Array(buffer);
-          } catch (sdkErr) {
-            console.warn('Firebase SDK fetch failed, trying direct fetch:', sdkErr);
-            // Fallback to direct fetch if SDK fails
-            const response = await fetch(data);
-            if (!response.ok) {
-              throw new Error(`Failed to fetch PDF: ${response.statusText}`);
-            }
-            const buffer = await response.arrayBuffer();
-            bytes = new Uint8Array(buffer);
+        try {
+          // Remove any characters that are not valid base64 characters
+          const safeBase64 = pureBase64.replace(/[^A-Za-z0-9+/=]/g, '');
+          const binaryString = atob(safeBase64);
+          bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
           }
-        } else {
-          console.log("PDFRenderer data (first 100 chars):", data.substring(0, 100));
-          // Check if it's a data URL or raw base64
-          const base64Match = data.match(/base64,(.*)$/);
-          const pureBase64 = base64Match ? base64Match[1] : data.trim();
-
-          try {
-            // Remove any characters that are not valid base64 characters
-            const safeBase64 = pureBase64.replace(/[^A-Za-z0-9+/=]/g, '');
-            const binaryString = atob(safeBase64);
-            bytes = new Uint8Array(binaryString.length);
-            for (let i = 0; i < binaryString.length; i++) {
-              bytes[i] = binaryString.charCodeAt(i);
-            }
-            
-            if (bytes.length === 0) {
-              throw new Error('Decoded binary string is empty');
-            }
-          } catch (err) {
-            console.error('Base64 conversion failed:', err);
-            throw new Error('Invalid base64 encoding in evidence file.');
+          
+          if (bytes.length === 0) {
+            throw new Error('Decoded binary string is empty');
           }
+        } catch (err) {
+          console.error('Base64 conversion failed:', err);
+          throw new Error('Invalid base64 encoding in evidence file.');
         }
 
         if (bytes.length === 0) {
@@ -191,7 +179,13 @@ export default function PDFRenderer({ data, textContent }: PDFRendererProps) {
 
       {/* Canvas Area */}
       <div className="flex-1 overflow-auto p-4 flex justify-center bg-surface/30 scrollbar-thin scrollbar-thumb-border-main scrollbar-track-transparent">
-        {loading ? (
+        {data.startsWith('http') ? (
+          <iframe 
+            src={`${data}#toolbar=0&navpanes=0&scrollbar=0`}
+            className="w-full h-full rounded-lg border-none bg-white"
+            title="PDF Evidence Preview"
+          />
+        ) : loading ? (
           <div className="flex flex-col items-center justify-center gap-4">
             <Loader2 className="w-8 h-8 text-brand-accent animate-spin" />
             <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Rendering Evidence...</p>

@@ -54,7 +54,7 @@ ${textContent}`
   }
 
   const response = await ai.models.generateContent({
-    model: "gemini-3.1-pro-preview",
+    model: "gemini-3-flash-preview",
     contents: [{ parts }],
     config: {
       systemInstruction: "You are JusticeFlow AI, a sophisticated Judicial Intelligence Assistant. Your task is to analyze legal documents and provide structured insights with judicial neutrality. Output MUST be in JSON format.",
@@ -67,18 +67,18 @@ ${textContent}`
 
 export const chatWithCase = async (documentContent: string, history: { role: 'user' | 'assistant', content: string }[], message: string) => {
   const chat = ai.chats.create({
-    model: "gemini-3.1-pro-preview",
+    model: "gemini-3-flash-preview",
     config: {
       systemInstruction: `You are JusticeFlow AI, a Judicial Intelligence Assistant. You are assisting a Magistrate in analyzing legal documents. 
       Answer questions based on the document content provided. Be precise, professional, and cite specific sections of the document when possible.
       Document Content: ${documentContent}`
-    }
+    },
+    history: history.map(h => ({
+      role: h.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: h.content }]
+    }))
   });
 
-  // Note: sendMessage only accepts message string, history is handled by the chat instance if we were using it sequentially, 
-  // but for stateless calls we might need to recreate history or use a different approach.
-  // Actually, we'll just send the message.
-  
   const response = await chat.sendMessage({ message });
   return response.text;
 };

@@ -23,6 +23,7 @@ export default function DocumentPreview({ fileUrl, type, fileName, textContent, 
             src={displayUrl} 
             alt={fileName}
             className="max-w-full max-h-full object-contain rounded-lg shadow-2xl border border-border-main"
+            referrerPolicy="no-referrer"
             onError={() => setImageError(true)}
           />
         ) : (
