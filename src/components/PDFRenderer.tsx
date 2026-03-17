@@ -20,6 +20,7 @@ export default function PDFRenderer({ data, textContent }: PDFRendererProps) {
   const [scale, setScale] = useState(1.5);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [objectUrl, setObjectUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const loadPdf = async () => {
@@ -29,25 +30,41 @@ export default function PDFRenderer({ data, textContent }: PDFRendererProps) {
         return;
       }
 
-      // If it's a URL, we can try to use the native browser renderer first
-      // which is much faster and avoids CORS issues for the JS layer.
-      if (data.startsWith('http')) {
-        setLoading(false);
-        return;
-      }
-
       setLoading(true);
       setError(null);
+      
+      // Cleanup previous object URL
+      if (objectUrl && objectUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(objectUrl);
+      }
+      setObjectUrl(null);
+
       try {
         let bytes: Uint8Array;
         
-        console.log("PDFRenderer data (first 100 chars):", data.substring(0, 100));
-        // Check if it's a data URL or raw base64
-        const base64Match = data.match(/base64,(.*)$/);
-        const pureBase64 = base64Match ? base64Match[1] : data.trim();
-
-        try {
-          // Remove any characters that are not valid base64 characters
+        if (data.startsWith('http')) {
+          try {
+            // Fetch the PDF as a blob to bypass iframe cross-origin restrictions
+            const fileRef = storageRef(storage, data);
+            const blob = await getBlob(fileRef);
+            const url = URL.createObjectURL(blob);
+            setObjectUrl(url);
+            
+            // We still load it into pdf.js for the canvas fallback if needed
+            const buffer = await blob.arrayBuffer();
+            bytes = new Uint8Array(buffer);
+          } catch (sdkErr) {
+            console.warn('Firebase SDK fetch failed, falling back to direct URL:', sdkErr);
+            // If fetch fails (likely CORS), use the URL directly in the iframe
+            // This is a last resort as Chrome might still block it, but it's better than a JS error
+            setObjectUrl(data);
+            setLoading(false);
+            return;
+          }
+        } else {
+          // Handle base64 data
+          const base64Match = data.match(/base64,(.*)$/);
+          const pureBase64 = base64Match ? base64Match[1] : data.trim();
           const safeBase64 = pureBase64.replace(/[^A-Za-z0-9+/=]/g, '');
           const binaryString = atob(safeBase64);
           bytes = new Uint8Array(binaryString.length);
@@ -55,21 +72,14 @@ export default function PDFRenderer({ data, textContent }: PDFRendererProps) {
             bytes[i] = binaryString.charCodeAt(i);
           }
           
-          if (bytes.length === 0) {
-            throw new Error('Decoded binary string is empty');
-          }
-        } catch (err) {
-          console.error('Base64 conversion failed:', err);
-          throw new Error('Invalid base64 encoding in evidence file.');
-        }
-
-        if (bytes.length === 0) {
-          throw new Error('Evidence file is empty (0 bytes).');
+          const blob = new Blob([bytes], { type: 'application/pdf' });
+          const url = URL.createObjectURL(blob);
+          setObjectUrl(url);
         }
 
         const loadingTask = pdfjs.getDocument({ 
           data: bytes,
-          verbosity: 0 // Reduce console noise
+          verbosity: 0
         });
         
         const pdfDoc = await loadingTask.promise;
@@ -78,12 +88,18 @@ export default function PDFRenderer({ data, textContent }: PDFRendererProps) {
         setPageNum(1);
       } catch (err: any) {
         console.error('Error loading PDF:', err);
-        setError(err.message || 'Failed to render PDF evidence. The file might be corrupted.');
+        setError(err.message || 'Failed to render PDF evidence.');
       }
       setLoading(false);
     };
 
     loadPdf();
+    
+    return () => {
+      if (objectUrl && objectUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
   }, [data]);
 
   useEffect(() => {
@@ -126,62 +142,64 @@ export default function PDFRenderer({ data, textContent }: PDFRendererProps) {
   return (
     <div className="flex flex-col h-full bg-surface/50 rounded-xl overflow-hidden border border-border-main">
       {/* Toolbar */}
-      <div className="bg-surface/80 border-b border-border-main px-4 py-2 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1">
-            <button 
-              onClick={() => changePage(-1)} 
-              disabled={pageNum <= 1}
-              className="p-1 hover:bg-surface rounded disabled:opacity-30 text-text-main transition-colors"
+      {numPages > 0 && (
+        <div className="bg-surface/80 border-b border-border-main px-4 py-2 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1">
+              <button 
+                onClick={() => changePage(-1)} 
+                disabled={pageNum <= 1}
+                className="p-1 hover:bg-surface rounded disabled:opacity-30 text-text-main transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest min-w-[60px] text-center">
+                Page {pageNum} / {numPages}
+              </span>
+              <button 
+                onClick={() => changePage(1)} 
+                disabled={pageNum >= numPages}
+                className="p-1 hover:bg-surface rounded disabled:opacity-30 text-text-main transition-colors"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="h-4 w-px bg-border-main" />
+            <div className="flex items-center gap-1">
+              <button 
+                onClick={() => setScale(prev => Math.max(0.5, prev - 0.25))}
+                className="p-1 hover:bg-surface rounded text-text-main transition-colors"
+                title="Zoom Out"
+              >
+                <ZoomOut className="w-4 h-4" />
+              </button>
+              <button 
+                onClick={() => setScale(prev => Math.min(3, prev + 0.25))}
+                className="p-1 hover:bg-surface rounded text-text-main transition-colors"
+                title="Zoom In"
+              >
+                <ZoomIn className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="h-4 w-px bg-border-main" />
+            <a 
+              href={data} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-3 py-1 bg-brand-accent/10 hover:bg-brand-accent/20 text-brand-accent rounded-lg transition-all text-[10px] font-bold uppercase tracking-widest"
             >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest min-w-[60px] text-center">
-              Page {pageNum} / {numPages}
-            </span>
-            <button 
-              onClick={() => changePage(1)} 
-              disabled={pageNum >= numPages}
-              className="p-1 hover:bg-surface rounded disabled:opacity-30 text-text-main transition-colors"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
+              <FileText className="w-3 h-3" />
+              Open Original
+            </a>
           </div>
-          <div className="h-4 w-px bg-border-main" />
-          <div className="flex items-center gap-1">
-            <button 
-              onClick={() => setScale(prev => Math.max(0.5, prev - 0.25))}
-              className="p-1 hover:bg-surface rounded text-text-main transition-colors"
-              title="Zoom Out"
-            >
-              <ZoomOut className="w-4 h-4" />
-            </button>
-            <button 
-              onClick={() => setScale(prev => Math.min(3, prev + 0.25))}
-              className="p-1 hover:bg-surface rounded text-text-main transition-colors"
-              title="Zoom In"
-            >
-              <ZoomIn className="w-4 h-4" />
-            </button>
-          </div>
-          <div className="h-4 w-px bg-border-main" />
-          <a 
-            href={data} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 px-3 py-1 bg-brand-accent/10 hover:bg-brand-accent/20 text-brand-accent rounded-lg transition-all text-[10px] font-bold uppercase tracking-widest"
-          >
-            <FileText className="w-3 h-3" />
-            Open Original
-          </a>
         </div>
-      </div>
+      )}
 
       {/* Canvas Area */}
       <div className="flex-1 overflow-auto p-4 flex justify-center bg-surface/30 scrollbar-thin scrollbar-thumb-border-main scrollbar-track-transparent">
-        {data.startsWith('http') ? (
+        {objectUrl ? (
           <iframe 
-            src={`${data}#toolbar=0&navpanes=0&scrollbar=0`}
+            src={`${objectUrl}#toolbar=0&navpanes=0&scrollbar=0`}
             className="w-full h-full rounded-lg border-none bg-white"
             title="PDF Evidence Preview"
           />

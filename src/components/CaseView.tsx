@@ -1,5 +1,6 @@
 import * as React from 'react';
 const { useState, useEffect, useRef } = React;
+import { useTranslation } from 'react-i18next';
 import { db, auth, storage, handleFirestoreError, OperationType } from '../firebase';
 import { collection, query, where, onSnapshot, addDoc, serverTimestamp, doc, getDoc, orderBy } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -28,6 +29,7 @@ interface CaseViewProps {
 }
 
 export default function CaseView({ caseId, onBack }: CaseViewProps) {
+  const { t } = useTranslation();
   const [caseData, setCaseData] = useState<Case | null>(null);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [activeDoc, setActiveDoc] = useState<Document | null>(null);
@@ -340,7 +342,7 @@ export default function CaseView({ caseId, onBack }: CaseViewProps) {
       doc.text('Evidence Audit (Forensics)', 20, 20);
       autoTable(doc, {
         startY: 30,
-        head: [['Description', 'Verdict', 'AI Prob', 'True Prob', 'Notes']],
+        head: [[t('case.description'), t('case.verdict'), t('case.aiProb'), t('case.trueProb'), t('case.notes')]],
         body: analysis.evidence_audit.map(r => [
           r.description, 
           r.verdict, 
@@ -422,7 +424,7 @@ export default function CaseView({ caseId, onBack }: CaseViewProps) {
         <div className="flex items-center gap-6">
           <button onClick={onBack} className="flex items-center gap-2 text-text-muted hover:text-brand-accent transition-all font-semibold uppercase tracking-widest text-[10px]">
             <ArrowLeft className="w-3 h-3" />
-            Back to Records
+            {t('common.back')}
           </button>
           <div className="h-6 w-px bg-border-main" />
           <div className="flex gap-2 overflow-x-auto max-w-[600px] pb-1 no-scrollbar">
@@ -449,11 +451,11 @@ export default function CaseView({ caseId, onBack }: CaseViewProps) {
             className="flex items-center gap-2 px-4 py-2 bg-surface border border-border-main rounded-lg text-text-main font-semibold uppercase tracking-widest text-[10px] hover:bg-surface/80 disabled:opacity-30 transition-all"
           >
             <Download className="w-3 h-3" />
-            Export Analysis
+            {t('case.exportReport')}
           </button>
             <label className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-lg font-semibold uppercase tracking-widest text-[10px] hover:bg-brand-primary/90 cursor-pointer shadow-lg shadow-brand-primary/10 transition-all">
             <Upload className="w-3 h-3" />
-            {uploadSuccess ? 'Evidence Authorized' : 'Upload Evidence'}
+            {uploadSuccess ? t('common.confirm') : t('case.uploadEvidence')}
             <input type="file" className="hidden" accept=".pdf,.txt,.jpg,.jpeg,.png" onChange={handleFileUpload} />
           </label>
         </div>
@@ -467,7 +469,7 @@ export default function CaseView({ caseId, onBack }: CaseViewProps) {
               <div className="bg-surface/50 border-b border-border-main px-6 py-3 flex items-center justify-between">
                 <h3 className="text-[10px] font-bold text-brand-accent uppercase tracking-[0.3em] flex items-center gap-2">
                   <FileText className="w-3 h-3" />
-                  Evidence Vault
+                  {t('case.evidenceVault')}
                 </h3>
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-semibold text-text-muted uppercase tracking-widest">{activeDoc?.fileName || 'No active file'}</span>
@@ -516,7 +518,7 @@ export default function CaseView({ caseId, onBack }: CaseViewProps) {
                 {isAnalyzing && (
                   <div className="flex items-center gap-3 text-brand-accent text-[10px] font-bold uppercase tracking-widest">
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Analyzing...
+                    {t('case.analyzing')}
                   </div>
                 )}
               </div>
@@ -535,7 +537,7 @@ export default function CaseView({ caseId, onBack }: CaseViewProps) {
                   >
                     {activeTab === 'summary' && (
                       <div className="space-y-6">
-                        <h4 className="text-2xl font-bold text-text-main tracking-tight">Document Summary</h4>
+                        <h4 className="text-2xl font-bold text-text-main tracking-tight">{t('case.summary')}</h4>
                         <div className="bg-brand-accent/5 p-8 rounded-[2rem] border border-brand-accent/10 leading-relaxed text-text-main shadow-inner">
                           <ReactMarkdown>{analysis?.summary || ''}</ReactMarkdown>
                         </div>
@@ -546,7 +548,7 @@ export default function CaseView({ caseId, onBack }: CaseViewProps) {
                       <div className="space-y-8">
                         <h4 className="text-2xl font-bold text-text-main tracking-tight flex items-center gap-3">
                           <Scale className="w-6 h-6 text-brand-accent" />
-                          Key Legal Points
+                          {t('case.legalPoints')}
                         </h4>
                         <div className="space-y-4">
                           {analysis?.legal_points.map((point, i) => (
@@ -565,7 +567,7 @@ export default function CaseView({ caseId, onBack }: CaseViewProps) {
                       <div className="space-y-8">
                         <h4 className="text-2xl font-bold text-text-main tracking-tight flex items-center gap-3">
                           <History className="w-6 h-6 text-brand-accent" />
-                          Chronological Sequence
+                          {t('case.timeline')}
                         </h4>
                         <div className="space-y-6 relative before:absolute before:left-[15px] before:top-2 before:bottom-2 before:w-px before:bg-border-main">
                           {analysis?.timeline.map((event, i) => (
@@ -586,7 +588,7 @@ export default function CaseView({ caseId, onBack }: CaseViewProps) {
                       <div className="space-y-8">
                         <h4 className="text-2xl font-bold text-text-main tracking-tight flex items-center gap-3">
                           <ShieldCheck className="w-6 h-6 text-brand-accent" />
-                          Forensic Integrity Audit
+                          {t('case.forensicAudit')}
                         </h4>
                         <div className="space-y-8">
                           {analysis?.evidence_audit?.map((report, i) => {
@@ -599,7 +601,7 @@ export default function CaseView({ caseId, onBack }: CaseViewProps) {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
                                   {/* Left: Detection Image */}
                                   <div className="space-y-4">
-                                    <h5 className="text-[10px] font-bold text-text-muted uppercase tracking-[0.2em]">Detection image</h5>
+                                    <h5 className="text-[10px] font-bold text-text-muted uppercase tracking-[0.2em]">{t('case.detectionImage')}</h5>
                                     <div className="aspect-square bg-surface border border-border-main rounded-3xl overflow-hidden flex items-center justify-center relative group">
                                       {activeDoc?.type.startsWith('image/') && (previewUrl || activeDoc?.fileUrl) ? (
                                         <img 
@@ -623,12 +625,12 @@ export default function CaseView({ caseId, onBack }: CaseViewProps) {
                                   {/* Right: Detection Results */}
                                   <div className="space-y-8">
                                     <div className="space-y-2">
-                                      <h5 className="text-[10px] font-bold text-text-muted uppercase tracking-[0.2em]">Detection results</h5>
+                                      <h5 className="text-[10px] font-bold text-text-muted uppercase tracking-[0.2em]">{t('case.detectionResults')}</h5>
                                       <h3 className={cn(
                                         "text-xl font-bold tracking-tight",
                                         isAI ? "text-red-500" : "text-green-500"
                                       )}>
-                                        This image is likely {isAI ? 'AI-generated' : 'human-generated'}
+                                        {isAI ? t('case.verdictIsAI') : t('case.verdictIsHuman')}
                                       </h3>
                                     </div>
 
@@ -636,14 +638,14 @@ export default function CaseView({ caseId, onBack }: CaseViewProps) {
                                       <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-3">
                                           <div className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
-                                          <span className="text-[11px] font-bold text-text-muted uppercase tracking-widest">AI generated probability</span>
+                                          <span className="text-[11px] font-bold text-text-muted uppercase tracking-widest">{t('case.aiProbability')}</span>
                                         </div>
                                         <span className="text-sm font-bold text-text-main">{aiProb}%</span>
                                       </div>
                                       <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-3">
                                           <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
-                                          <span className="text-[11px] font-bold text-text-muted uppercase tracking-widest">True image probability</span>
+                                          <span className="text-[11px] font-bold text-text-muted uppercase tracking-widest">{t('case.trueProbability')}</span>
                                         </div>
                                         <span className="text-sm font-bold text-text-main">{trueProb}%</span>
                                       </div>
@@ -681,7 +683,7 @@ export default function CaseView({ caseId, onBack }: CaseViewProps) {
                                             "text-xl font-bold tracking-tighter",
                                             isAI ? "text-red-500" : "text-green-500"
                                           )}>{aiProb}%</span>
-                                          <span className="text-[8px] font-bold text-text-muted uppercase tracking-widest">AI Prob</span>
+                                          <span className="text-[8px] font-bold text-text-muted uppercase tracking-widest">{t('case.aiProb')}</span>
                                         </div>
                                       </div>
                                     </div>
@@ -689,7 +691,7 @@ export default function CaseView({ caseId, onBack }: CaseViewProps) {
                                 </div>
 
                                 <div className="mt-8 bg-surface/50 p-6 rounded-2xl border-l-4 border-brand-accent space-y-2">
-                                  <span className="text-[9px] font-bold text-text-muted uppercase tracking-[0.2em]">Forensic Notes</span>
+                                  <span className="text-[9px] font-bold text-text-muted uppercase tracking-[0.2em]">{t('case.forensicNotes')}</span>
                                   <p className="text-sm text-text-main leading-relaxed italic">"{report.forensic_notes}"</p>
                                 </div>
                               </div>
@@ -698,7 +700,7 @@ export default function CaseView({ caseId, onBack }: CaseViewProps) {
                           {(!analysis?.evidence_audit || analysis.evidence_audit.length === 0) && (
                             <div className="text-center py-24 text-text-muted opacity-20">
                               <ShieldCheck className="w-24 h-24 mx-auto mb-6" />
-                              <p className="font-bold uppercase tracking-[0.3em] text-xs">Awaiting Visual Evidence for Forensic Scan</p>
+                              <p className="font-bold uppercase tracking-[0.3em] text-xs">{t('case.awaitingVisual')}</p>
                             </div>
                           )}
                         </div>
@@ -713,21 +715,21 @@ export default function CaseView({ caseId, onBack }: CaseViewProps) {
             <div className="glass-card rounded-[2.5rem] flex flex-col overflow-hidden">
               <div className="bg-surface/50 border-b border-border-main px-8 py-4 flex items-center gap-3">
                 <MessageSquare className="w-5 h-5 text-brand-accent" />
-                <h3 className="text-[10px] font-bold text-text-main uppercase tracking-[0.3em]">Judicial AI Interface</h3>
+                <h3 className="text-[10px] font-bold text-text-main uppercase tracking-[0.3em]">{t('case.chatInterface')}</h3>
               </div>
 
               <div className="flex-1 overflow-y-auto p-8 space-y-6">
                 {chatMessages.length === 0 && (
                   <div className="h-full flex flex-col items-center justify-center text-text-muted opacity-20">
                     <MessageSquare className="w-16 h-16 mb-6" />
-                    <p className="font-semibold uppercase tracking-[0.2em] text-[10px] mb-8">Awaiting Judicial Query</p>
+                    <p className="font-semibold uppercase tracking-[0.2em] text-[10px] mb-8">{t('case.awaitingQuery')}</p>
                     
                     <div className="grid grid-cols-1 gap-3 w-full max-w-md">
                       {[
-                        "Summarize the primary legal arguments.",
-                        "Identify potential witness contradictions.",
-                        "List all mentioned dates and their significance.",
-                        "What are the relevant precedents for this case?"
+                        t('case.query1'),
+                        t('case.query2'),
+                        t('case.query3'),
+                        t('case.query4')
                       ].map((query, i) => (
                         <button
                           key={i}
@@ -776,7 +778,7 @@ export default function CaseView({ caseId, onBack }: CaseViewProps) {
                     type="text"
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
-                    placeholder="Inquire about case specifics or legal implications..."
+                    placeholder={t('case.chatPlaceholder')}
                     disabled={!activeDoc || isChatting}
                     className="w-full pl-6 pr-16 py-5 bg-surface/50 border border-border-main rounded-2xl text-text-main placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-accent/50 disabled:opacity-30 transition-all"
                   />
@@ -798,12 +800,12 @@ export default function CaseView({ caseId, onBack }: CaseViewProps) {
             <ShieldCheck className="w-16 h-16 text-brand-accent animate-pulse" />
           </div>
           <div className="space-y-4 max-w-md">
-            <h3 className="text-3xl font-bold text-text-main tracking-tight">Evidence Vault Empty</h3>
-            <p className="text-text-muted leading-relaxed">The judicial intelligence portal requires evidence input to begin analysis. Please upload legal documents or visual evidence to proceed.</p>
+            <h3 className="text-3xl font-bold text-text-main tracking-tight">{t('case.evidenceVault')} Empty</h3>
+            <p className="text-text-muted leading-relaxed">{t('dashboard.initializeFirst')}</p>
           </div>
           <label className="flex items-center gap-3 px-10 py-5 bg-brand-primary text-white rounded-2xl font-bold uppercase tracking-[0.2em] text-xs hover:bg-brand-primary/90 cursor-pointer shadow-2xl shadow-brand-primary/20 transition-all active:scale-95">
             <Upload className="w-4 h-4" />
-            Initialize Evidence Stream
+            {t('case.uploadEvidence')}
             <input type="file" className="hidden" accept=".pdf,.txt,.jpg,.jpeg,.png" onChange={handleFileUpload} />
           </label>
         </div>

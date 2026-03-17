@@ -4,16 +4,18 @@
  */
 
 import React, { useState, useEffect, Suspense, lazy } from 'react';
+import { useTranslation } from 'react-i18next';
 import { auth, signInWithJudicial, logOut, db, handleFirestoreError, OperationType } from './firebase';
 import { onAuthStateChanged, User, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
-import { Gavel, LogOut, Plus, FileText, MessageSquare, BarChart3, ChevronRight, Upload, Search, Download, ShieldCheck, Lock, User as UserIcon, AlertCircle, Scale, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Gavel, LogOut, Plus, FileText, MessageSquare, BarChart3, ChevronRight, Upload, Search, Download, ShieldCheck, Lock, User as UserIcon, AlertCircle, Scale, Loader2, Eye, EyeOff, Languages } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { JusticeFlowLogo } from './components/Logo';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { Sun, Moon } from 'lucide-react';
+import LanguageSwitcher from './components/LanguageSwitcher';
 
 import Dashboard from './components/Dashboard';
 import CaseView from './components/CaseView';
@@ -31,6 +33,7 @@ export default function App() {
 }
 
 function AppContent() {
+  const { t } = useTranslation();
   const { theme, toggleTheme } = useTheme();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -149,7 +152,8 @@ function AppContent() {
   if (!user) {
     return (
       <div className="min-h-screen brand-gradient flex flex-col items-center justify-center p-4 relative overflow-hidden">
-        <div className="absolute top-8 right-8 z-50">
+        <div className="absolute top-8 right-8 z-50 flex items-center gap-4">
+          <LanguageSwitcher />
           <button
             onClick={toggleTheme}
             className="p-3 rounded-2xl bg-surface border border-border-main text-text-muted hover:text-brand-accent transition-all shadow-lg"
@@ -175,8 +179,8 @@ function AppContent() {
               </motion.div>
             </div>
             <div className="space-y-1">
-              <h1 className="text-4xl font-bold text-text-main tracking-tight">JusticeFlow</h1>
-              <p className="text-text-muted text-sm font-medium uppercase tracking-[0.3em]">Judicial Intelligence</p>
+              <h1 className="text-4xl font-bold text-text-main tracking-tight">{t('auth.welcome')}</h1>
+              <p className="text-text-muted text-sm font-medium uppercase tracking-[0.3em]">{t('auth.tagline')}</p>
             </div>
           </div>
 
@@ -292,6 +296,7 @@ function AppContent() {
         </div>
 
         <div className="flex items-center gap-6">
+          <LanguageSwitcher />
           <button
             onClick={toggleTheme}
             className="p-2.5 text-text-muted hover:text-brand-accent hover:bg-brand-accent/10 rounded-xl transition-all"

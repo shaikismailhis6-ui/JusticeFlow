@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { db, auth, storage, handleFirestoreError, OperationType } from '../firebase';
 import { collection, query, where, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -22,6 +23,7 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ onSelectCase }: DashboardProps) {
+  const { t } = useTranslation();
   const [cases, setCases] = useState<Case[]>([]);
   const [showNewCaseModal, setShowNewCaseModal] = useState(false);
   const [editingCase, setEditingCase] = useState<Case | null>(null);
@@ -230,15 +232,15 @@ export default function Dashboard({ onSelectCase }: DashboardProps) {
     >
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold text-text-main tracking-tight">Case Management</h2>
-          <p className="text-text-muted font-medium uppercase tracking-widest text-[10px] mt-1">Judicial Intelligence Portal</p>
+          <h2 className="text-3xl font-bold text-text-main tracking-tight">{t('dashboard.title')}</h2>
+          <p className="text-text-muted font-medium uppercase tracking-widest text-[10px] mt-1">{t('dashboard.subtitle')}</p>
         </div>
         <button
           onClick={() => setShowNewCaseModal(true)}
           className="bg-brand-primary text-white px-6 py-3 rounded-xl font-semibold hover:bg-brand-primary/90 transition-all flex items-center gap-2 shadow-lg shadow-brand-primary/10"
         >
           <Plus className="w-4 h-4" />
-          New Case Entry
+          {t('dashboard.newCase')}
         </button>
       </div>
 
@@ -263,7 +265,7 @@ export default function Dashboard({ onSelectCase }: DashboardProps) {
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted w-4 h-4" />
         <input
           type="text"
-          placeholder="Search judicial records by title or number..."
+          placeholder={t('common.search')}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="w-full pl-12 pr-6 py-4 bg-surface/50 border border-border-main rounded-xl text-text-main placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-brand-accent/50 transition-all"
@@ -317,7 +319,7 @@ export default function Dashboard({ onSelectCase }: DashboardProps) {
             </div>
             
             <div className="mt-6 pt-4 border-t border-border-main flex items-center text-brand-accent font-bold text-[10px] uppercase tracking-widest group-hover:gap-2 transition-all">
-              Analyze Case
+              {t('dashboard.viewCase')}
               <ChevronRight className="w-3 h-3 ml-1 group-hover:translate-x-1 transition-transform" />
             </div>
           </motion.div>
@@ -326,8 +328,8 @@ export default function Dashboard({ onSelectCase }: DashboardProps) {
         {filteredCases.length === 0 && (
           <div className="col-span-full py-24 text-center glass-card rounded-[3rem] border-dashed border-border-main">
             <Folder className="w-16 h-16 text-text-muted opacity-20 mx-auto mb-6" />
-            <h3 className="text-2xl font-bold text-text-main mb-2">No judicial records found</h3>
-            <p className="text-text-muted font-medium tracking-wide">Initiate a new case analysis to begin</p>
+            <h3 className="text-2xl font-bold text-text-main mb-2">{t('dashboard.noCases')}</h3>
+            <p className="text-text-muted font-medium tracking-wide">{t('dashboard.initializeFirst')}</p>
           </div>
         )}
       </div>
@@ -341,7 +343,7 @@ export default function Dashboard({ onSelectCase }: DashboardProps) {
           >
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-2xl font-bold text-text-main tracking-tight">
-                {editingCase ? 'Modify Case Record' : 'Initiate Case Analysis'}
+                {editingCase ? t('common.edit') : t('dashboard.newCase')}
               </h3>
               {!editingCase && (
                 <button
@@ -371,7 +373,7 @@ export default function Dashboard({ onSelectCase }: DashboardProps) {
                 </div>
               )}
               <div className="space-y-2">
-                <label className="block text-[10px] font-bold text-text-muted uppercase tracking-[0.2em] ml-1">Case Title / Reference</label>
+                <label className="block text-[10px] font-bold text-text-muted uppercase tracking-[0.2em] ml-1">{t('dashboard.caseTitle')}</label>
                 <input
                   autoFocus
                   type="text"
@@ -382,7 +384,7 @@ export default function Dashboard({ onSelectCase }: DashboardProps) {
                 />
               </div>
               <div className="space-y-2">
-                <label className="block text-[10px] font-bold text-text-muted uppercase tracking-[0.2em] ml-1">Case Briefing</label>
+                <label className="block text-[10px] font-bold text-text-muted uppercase tracking-[0.2em] ml-1">{t('dashboard.caseDescription')}</label>
                 <textarea
                   value={newCaseDescription}
                   onChange={(e) => setNewCaseDescription(e.target.value)}
@@ -457,7 +459,7 @@ export default function Dashboard({ onSelectCase }: DashboardProps) {
                   }}
                   className="flex-1 px-6 py-3 border border-border-main text-text-muted font-semibold uppercase tracking-widest text-[10px] rounded-xl hover:bg-surface/50 transition-all disabled:opacity-50"
                 >
-                  Abort
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
@@ -470,7 +472,7 @@ export default function Dashboard({ onSelectCase }: DashboardProps) {
                   {isSuccess ? (
                     <>
                       <ShieldCheck className="w-4 h-4" />
-                      Entry Authorized
+                      {t('common.confirm')}
                     </>
                   ) : processingMessage ? (
                     <>
@@ -478,7 +480,7 @@ export default function Dashboard({ onSelectCase }: DashboardProps) {
                       {processingMessage}
                     </>
                   ) : (
-                    editingCase ? 'Update Record' : 'Confirm Entry'
+                    editingCase ? t('common.save') : t('dashboard.createCase')
                   )}
                 </button>
               </div>
