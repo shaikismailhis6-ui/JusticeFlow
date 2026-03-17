@@ -4,7 +4,7 @@ import { db, auth, storage, handleFirestoreError, OperationType } from '../fireb
 import { collection, query, where, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Case } from '../types';
-import { Plus, Folder, Clock, ChevronRight, Trash2, Search, Edit2, Upload, FileText, X, Loader2, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Plus, Folder, Clock, ChevronRight, Trash2, Search, Edit2, Upload, FileText, X, Loader2, ShieldCheck, AlertCircle, Gavel } from 'lucide-react';
 import { motion } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -327,7 +327,7 @@ export default function Dashboard({ onSelectCase }: DashboardProps) {
 
         {filteredCases.length === 0 && (
           <div className="col-span-full py-24 text-center glass-card rounded-[3rem] border-dashed border-border-main">
-            <Folder className="w-16 h-16 text-text-muted opacity-20 mx-auto mb-6" />
+            <Gavel className="w-16 h-16 text-text-muted opacity-20 mx-auto mb-6" />
             <h3 className="text-2xl font-bold text-text-main mb-2">{t('dashboard.noCases')}</h3>
             <p className="text-text-muted font-medium tracking-wide">{t('dashboard.initializeFirst')}</p>
           </div>

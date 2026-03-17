@@ -758,7 +758,7 @@ export default function CaseView({ caseId, onBack }: CaseViewProps) {
                       <ReactMarkdown>{msg.content}</ReactMarkdown>
                     </div>
                     <span className="text-[9px] font-bold text-text-muted mt-2 px-2 uppercase tracking-widest">
-                      {msg.role === 'user' ? 'Magistrate' : 'JusticeFlow AI'} • {msg.createdAt?.toDate ? msg.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Real-time'}
+                      {msg.role === 'user' ? 'Judge' : 'JusticeFlow AI'} • {msg.createdAt?.toDate ? msg.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Real-time'}
                     </span>
                   </div>
                 ))}

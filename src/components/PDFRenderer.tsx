@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as pdfjs from 'pdfjs-dist/build/pdf.mjs';
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Loader2, FileText, AlertTriangle, Download } from 'lucide-react';
+import { storage } from '../firebase';
+import { ref as storageRef, getBlob } from 'firebase/storage';
 
 // Use a CDN for the worker to ensure it loads correctly and quickly
 pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.mjs`;
@@ -35,13 +37,29 @@ export default function PDFRenderer({ data, textContent }: PDFRendererProps) {
       setPageNum(1);
 
       try {
-        // Use the URL directly for streaming - much faster than fetching blob
+        let bytes: Uint8Array;
+
+        if (data.startsWith('http')) {
+          // Use Firebase SDK getBlob - it's much more reliable for CORS than raw fetch
+          const fileRef = storageRef(storage, data);
+          const blob = await getBlob(fileRef);
+          const arrayBuffer = await blob.arrayBuffer();
+          bytes = new Uint8Array(arrayBuffer);
+        } else {
+          // Handle base64 data
+          const base64Match = data.match(/base64,(.*)$/);
+          const pureBase64 = base64Match ? base64Match[1] : data.trim();
+          const safeBase64 = pureBase64.replace(/[^A-Za-z0-9+/=]/g, '');
+          const binaryString = atob(safeBase64);
+          bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+        }
+
         const loadingTask = pdfjs.getDocument({ 
-          url: data,
-          verbosity: 0,
-          // Disable range requests if needed, but usually it's faster with them
-          disableRange: false,
-          disableAutoFetch: false,
+          data: bytes,
+          verbosity: 0
         });
         
         const pdfDoc = await loadingTask.promise;

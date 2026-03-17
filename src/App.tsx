@@ -59,7 +59,7 @@ function AppContent() {
               displayName: user.displayName || 'Judicial Officer',
               email: user.email,
               role: user.email === 'shaikismailhis6@gmail.com' || user.email === 'judge@justiceflow.gov' ? 'admin' : 'judge',
-              photoURL: user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}`,
+              photoURL: user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=Judge-${user.uid}`,
               createdAt: serverTimestamp()
             });
           }
@@ -95,7 +95,7 @@ function AppContent() {
               const localUser = {
                 uid: 'demo-judge-001',
                 displayName: 'Hon. Justice Sharma (Local Session)',
-                photoURL: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Justice',
+                photoURL: 'https://api.dicebear.com/7.x/avataaars/svg?seed=ProfessionalJudge',
                 email: 'judge@justiceflow.gov'
               };
               (window as any)._localUser = localUser;
@@ -109,7 +109,7 @@ function AppContent() {
             if (auth.currentUser) {
               await updateProfile(auth.currentUser, {
                 displayName: 'Hon. Justice Sharma',
-                photoURL: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Justice'
+                photoURL: 'https://api.dicebear.com/7.x/avataaars/svg?seed=ProfessionalJudge'
               });
             }
           } else {
@@ -153,7 +153,6 @@ function AppContent() {
     return (
       <div className="min-h-screen brand-gradient flex flex-col items-center justify-center p-4 relative overflow-hidden">
         <div className="absolute top-8 right-8 z-50 flex items-center gap-4">
-          <LanguageSwitcher />
           <button
             onClick={toggleTheme}
             className="p-3 rounded-2xl bg-surface border border-border-main text-text-muted hover:text-brand-accent transition-all shadow-lg"
@@ -296,7 +295,6 @@ function AppContent() {
         </div>
 
         <div className="flex items-center gap-6">
-          <LanguageSwitcher />
           <button
             onClick={toggleTheme}
             className="p-2.5 text-text-muted hover:text-brand-accent hover:bg-brand-accent/10 rounded-xl transition-all"
@@ -312,13 +310,14 @@ function AppContent() {
                 {user.uid === 'demo-judge-001' ? 'Local Secure Session' : 'Judicial Officer'}
               </p>
             </div>
-            {user.photoURL && user.photoURL !== "" ? (
-              <img src={user.photoURL} className="w-10 h-10 rounded-xl border border-border-main shadow-lg" alt={user.displayName || 'User'} />
-            ) : (
-              <div className="w-10 h-10 rounded-xl border border-border-main bg-surface flex items-center justify-center text-brand-accent font-bold">
-                {user.displayName?.charAt(0) || 'J'}
-              </div>
-            )}
+            {/* Force professional judge avatar for all judicial officers */}
+            <div className="w-10 h-10 rounded-xl border border-border-main shadow-lg overflow-hidden bg-surface">
+              <img 
+                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=ProfessionalJudge&backgroundColor=b6e3f4,c0aede,d1d4f9`} 
+                className="w-full h-full object-cover" 
+                alt="Judicial Avatar" 
+              />
+            </div>
           </div>
           <button
             onClick={logOut}
