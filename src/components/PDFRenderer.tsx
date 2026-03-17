@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as pdfjs from 'pdfjs-dist/build/pdf.mjs';
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Loader2, FileText, AlertTriangle } from 'lucide-react';
 import { storage } from '../firebase';
-import { ref as storageRef, getBlob } from 'firebase/storage';
+import { ref as storageRef, getDownloadURL, getBlob } from 'firebase/storage';
 
 // Configure PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.mjs', import.meta.url).toString();
@@ -33,33 +33,51 @@ export default function PDFRenderer({ data, textContent }: PDFRendererProps) {
       setLoading(true);
       setError(null);
       
-      // Cleanup previous object URL
+      // Cleanup previous object URL if it was a blob
       if (objectUrl && objectUrl.startsWith('blob:')) {
         URL.revokeObjectURL(objectUrl);
       }
       setObjectUrl(null);
 
       try {
-        let bytes: Uint8Array;
-        
         if (data.startsWith('http')) {
+          const fileRef = storageRef(storage, data);
+          
+          // 1. Get direct URL for immediate streaming in iframe (MUCH FASTER)
           try {
-            // Fetch the PDF as a blob to bypass iframe cross-origin restrictions
-            const fileRef = storageRef(storage, data);
+            const url = await getDownloadURL(fileRef);
+            setObjectUrl(url);
+            setLoading(false); // Show the PDF immediately!
+            
+            // 2. Load in background for toolbar info (page count)
+            const loadingTask = pdfjs.getDocument({ 
+              url,
+              verbosity: 0,
+              // If CORS is an issue, we'll catch it but the iframe is already showing
+              withCredentials: false 
+            });
+            
+            const pdfDoc = await loadingTask.promise;
+            setPdf(pdfDoc);
+            setNumPages(pdfDoc.numPages);
+            setPageNum(1);
+          } catch (urlErr) {
+            console.warn('Direct URL fetch failed, trying blob fallback:', urlErr);
+            // Fallback to blob if direct URL fails (CORS/Permissions)
             const blob = await getBlob(fileRef);
             const url = URL.createObjectURL(blob);
             setObjectUrl(url);
-            
-            // We still load it into pdf.js for the canvas fallback if needed
-            const buffer = await blob.arrayBuffer();
-            bytes = new Uint8Array(buffer);
-          } catch (sdkErr) {
-            console.warn('Firebase SDK fetch failed, falling back to direct URL:', sdkErr);
-            // If fetch fails (likely CORS), use the URL directly in the iframe
-            // This is a last resort as Chrome might still block it, but it's better than a JS error
-            setObjectUrl(data);
             setLoading(false);
-            return;
+            
+            const buffer = await blob.arrayBuffer();
+            const loadingTask = pdfjs.getDocument({ 
+              data: new Uint8Array(buffer),
+              verbosity: 0
+            });
+            const pdfDoc = await loadingTask.promise;
+            setPdf(pdfDoc);
+            setNumPages(pdfDoc.numPages);
+            setPageNum(1);
           }
         } else {
           // Handle base64 data
@@ -67,7 +85,7 @@ export default function PDFRenderer({ data, textContent }: PDFRendererProps) {
           const pureBase64 = base64Match ? base64Match[1] : data.trim();
           const safeBase64 = pureBase64.replace(/[^A-Za-z0-9+/=]/g, '');
           const binaryString = atob(safeBase64);
-          bytes = new Uint8Array(binaryString.length);
+          const bytes = new Uint8Array(binaryString.length);
           for (let i = 0; i < binaryString.length; i++) {
             bytes[i] = binaryString.charCodeAt(i);
           }
@@ -75,20 +93,23 @@ export default function PDFRenderer({ data, textContent }: PDFRendererProps) {
           const blob = new Blob([bytes], { type: 'application/pdf' });
           const url = URL.createObjectURL(blob);
           setObjectUrl(url);
-        }
+          setLoading(false); // Show it now!
 
-        const loadingTask = pdfjs.getDocument({ 
-          data: bytes,
-          verbosity: 0
-        });
-        
-        const pdfDoc = await loadingTask.promise;
-        setPdf(pdfDoc);
-        setNumPages(pdfDoc.numPages);
-        setPageNum(1);
+          const loadingTask = pdfjs.getDocument({ 
+            data: bytes,
+            verbosity: 0
+          });
+          const pdfDoc = await loadingTask.promise;
+          setPdf(pdfDoc);
+          setNumPages(pdfDoc.numPages);
+          setPageNum(1);
+        }
       } catch (err: any) {
         console.error('Error loading PDF:', err);
-        setError(err.message || 'Failed to render PDF evidence.');
+        // Only show error if we don't even have an objectUrl showing
+        if (!objectUrl) {
+          setError(err.message || 'Failed to render PDF evidence.');
+        }
       }
       setLoading(false);
     };
