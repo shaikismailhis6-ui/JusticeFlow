@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as pdfjs from 'pdfjs-dist/build/pdf.mjs';
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Loader2, FileText, AlertTriangle, Download } from 'lucide-react';
+import { motion } from 'motion/react';
 import { storage } from '../firebase';
 import { ref as storageRef, getBlob } from 'firebase/storage';
 
@@ -184,9 +185,34 @@ export default function PDFRenderer({ data, textContent }: PDFRendererProps) {
       {/* Rendering Area */}
       <div className="flex-1 overflow-auto p-4 flex justify-center bg-surface/30 scrollbar-thin scrollbar-thumb-border-main scrollbar-track-transparent relative">
         {loading ? (
-          <div className="flex flex-col items-center justify-center gap-4 absolute inset-0">
-            <Loader2 className="w-8 h-8 text-brand-accent animate-spin" />
-            <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Streaming Forensic Evidence...</p>
+          <div className="flex flex-col items-center justify-center gap-6 absolute inset-0 bg-bg-deep/40 backdrop-blur-[2px] z-20">
+            <div className="relative">
+              <Loader2 className="w-12 h-12 text-brand-accent animate-spin" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-2 h-2 bg-brand-accent rounded-full animate-pulse" />
+              </div>
+            </div>
+            <div className="text-center space-y-2">
+              <p className="text-[10px] font-bold text-text-main uppercase tracking-[0.3em] animate-pulse">Streaming Forensic Evidence...</p>
+              <p className="text-[9px] text-text-muted uppercase tracking-widest">Optimizing visual layers for judicial review</p>
+            </div>
+            
+            {/* Instant Text Preview during load */}
+            {textContent && (
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="max-w-xl w-full mx-4 p-6 bg-surface/90 border border-border-main rounded-2xl shadow-2xl overflow-hidden"
+              >
+                <div className="flex items-center gap-2 mb-4 border-b border-border-main pb-2">
+                  <FileText className="w-3 h-3 text-brand-accent" />
+                  <span className="text-[9px] font-bold text-brand-accent uppercase tracking-widest">Instant Text Recovery (Active)</span>
+                </div>
+                <div className="max-h-[150px] overflow-y-auto font-serif text-xs text-text-muted leading-relaxed whitespace-pre-wrap text-left mask-fade-bottom">
+                  {textContent}
+                </div>
+              </motion.div>
+            )}
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center gap-4 p-10 text-center max-w-2xl w-full">
