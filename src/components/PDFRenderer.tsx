@@ -1,11 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as pdfjs from 'pdfjs-dist/build/pdf.mjs';
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Loader2, FileText, AlertTriangle } from 'lucide-react';
-import { storage } from '../firebase';
-import { ref as storageRef, getDownloadURL, getBlob } from 'firebase/storage';
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Loader2, FileText, AlertTriangle, Download } from 'lucide-react';
 
-// Configure PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.mjs', import.meta.url).toString();
+// Use a CDN for the worker to ensure it loads correctly and quickly
+pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.mjs`;
 
 interface PDFRendererProps {
   data: string;
@@ -17,10 +15,10 @@ export default function PDFRenderer({ data, textContent }: PDFRendererProps) {
   const [pdf, setPdf] = useState<pdfjs.PDFDocumentProxy | null>(null);
   const [pageNum, setPageNum] = useState(1);
   const [numPages, setNumPages] = useState(0);
-  const [scale, setScale] = useState(1.5);
+  const [scale, setScale] = useState(1.2);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [objectUrl, setObjectUrl] = useState<string | null>(null);
+  const [renderTask, setRenderTask] = useState<pdfjs.RenderTask | null>(null);
 
   useEffect(() => {
     const loadPdf = async () => {
@@ -32,120 +30,70 @@ export default function PDFRenderer({ data, textContent }: PDFRendererProps) {
 
       setLoading(true);
       setError(null);
-      
-      // Cleanup previous object URL if it was a blob
-      if (objectUrl && objectUrl.startsWith('blob:')) {
-        URL.revokeObjectURL(objectUrl);
-      }
-      setObjectUrl(null);
+      setPdf(null);
+      setNumPages(0);
+      setPageNum(1);
 
       try {
-        if (data.startsWith('http')) {
-          const fileRef = storageRef(storage, data);
-          
-          // 1. Get direct URL for immediate streaming in iframe (MUCH FASTER)
-          try {
-            const url = await getDownloadURL(fileRef);
-            setObjectUrl(url);
-            setLoading(false); // Show the PDF immediately!
-            
-            // 2. Load in background for toolbar info (page count)
-            const loadingTask = pdfjs.getDocument({ 
-              url,
-              verbosity: 0,
-              // If CORS is an issue, we'll catch it but the iframe is already showing
-              withCredentials: false 
-            });
-            
-            const pdfDoc = await loadingTask.promise;
-            setPdf(pdfDoc);
-            setNumPages(pdfDoc.numPages);
-            setPageNum(1);
-          } catch (urlErr) {
-            console.warn('Direct URL fetch failed, trying blob fallback:', urlErr);
-            // Fallback to blob if direct URL fails (CORS/Permissions)
-            const blob = await getBlob(fileRef);
-            const url = URL.createObjectURL(blob);
-            setObjectUrl(url);
-            setLoading(false);
-            
-            const buffer = await blob.arrayBuffer();
-            const loadingTask = pdfjs.getDocument({ 
-              data: new Uint8Array(buffer),
-              verbosity: 0
-            });
-            const pdfDoc = await loadingTask.promise;
-            setPdf(pdfDoc);
-            setNumPages(pdfDoc.numPages);
-            setPageNum(1);
-          }
-        } else {
-          // Handle base64 data
-          const base64Match = data.match(/base64,(.*)$/);
-          const pureBase64 = base64Match ? base64Match[1] : data.trim();
-          const safeBase64 = pureBase64.replace(/[^A-Za-z0-9+/=]/g, '');
-          const binaryString = atob(safeBase64);
-          const bytes = new Uint8Array(binaryString.length);
-          for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-          }
-          
-          const blob = new Blob([bytes], { type: 'application/pdf' });
-          const url = URL.createObjectURL(blob);
-          setObjectUrl(url);
-          setLoading(false); // Show it now!
-
-          const loadingTask = pdfjs.getDocument({ 
-            data: bytes,
-            verbosity: 0
-          });
-          const pdfDoc = await loadingTask.promise;
-          setPdf(pdfDoc);
-          setNumPages(pdfDoc.numPages);
-          setPageNum(1);
-        }
+        // Use the URL directly for streaming - much faster than fetching blob
+        const loadingTask = pdfjs.getDocument({ 
+          url: data,
+          verbosity: 0,
+          // Disable range requests if needed, but usually it's faster with them
+          disableRange: false,
+          disableAutoFetch: false,
+        });
+        
+        const pdfDoc = await loadingTask.promise;
+        setPdf(pdfDoc);
+        setNumPages(pdfDoc.numPages);
       } catch (err: any) {
         console.error('Error loading PDF:', err);
-        // Only show error if we don't even have an objectUrl showing
-        if (!objectUrl) {
-          setError(err.message || 'Failed to render PDF evidence.');
-        }
+        setError(err.message || 'Failed to render PDF evidence.');
       }
       setLoading(false);
     };
 
     loadPdf();
-    
-    return () => {
-      if (objectUrl && objectUrl.startsWith('blob:')) {
-        URL.revokeObjectURL(objectUrl);
-      }
-    };
   }, [data]);
 
   useEffect(() => {
     const renderPage = async () => {
       if (!pdf || !canvasRef.current) return;
 
+      // Cancel previous render task if it exists
+      if (renderTask) {
+        renderTask.cancel();
+      }
+
       try {
         const page = await pdf.getPage(pageNum);
-        const viewport = page.getViewport({ scale });
+        const viewport = page.getViewport({ scale: scale * window.devicePixelRatio });
         const canvas = canvasRef.current;
         const context = canvas.getContext('2d');
 
         if (!context) return;
 
-        canvas.height = viewport.height;
+        // Set display size
+        canvas.style.width = `${viewport.width / window.devicePixelRatio}px`;
+        canvas.style.height = `${viewport.height / window.devicePixelRatio}px`;
+        
+        // Set actual canvas size for high DPI
         canvas.width = viewport.width;
+        canvas.height = viewport.height;
 
-        const renderContext = {
+        const task = page.render({
           canvasContext: context,
           viewport: viewport,
-          canvas: canvas, // Add the canvas element itself
-        };
+        });
 
-        await page.render(renderContext).promise;
-      } catch (error) {
+        setRenderTask(task);
+        await task.promise;
+      } catch (error: any) {
+        if (error.name === 'RenderingCancelledException') {
+          // Normal cancellation, ignore
+          return;
+        }
         console.error('Error rendering page:', error);
       }
     };
@@ -157,14 +105,11 @@ export default function PDFRenderer({ data, textContent }: PDFRendererProps) {
     setPageNum(prev => Math.min(Math.max(1, prev + offset), numPages));
   };
 
-  // If the data is an HTTP URL, we now fetch it and render it via pdf.js
-  // to avoid Chrome blocking direct PDF embedding in iframes.
-  
   return (
     <div className="flex flex-col h-full bg-surface/50 rounded-xl overflow-hidden border border-border-main">
       {/* Toolbar */}
       {numPages > 0 && (
-        <div className="bg-surface/80 border-b border-border-main px-4 py-2 flex items-center justify-between">
+        <div className="bg-surface/80 border-b border-border-main px-4 py-2 flex items-center justify-between z-10">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1">
               <button 
@@ -188,46 +133,42 @@ export default function PDFRenderer({ data, textContent }: PDFRendererProps) {
             <div className="h-4 w-px bg-border-main" />
             <div className="flex items-center gap-1">
               <button 
-                onClick={() => setScale(prev => Math.max(0.5, prev - 0.25))}
+                onClick={() => setScale(prev => Math.max(0.5, prev - 0.2))}
                 className="p-1 hover:bg-surface rounded text-text-main transition-colors"
                 title="Zoom Out"
               >
                 <ZoomOut className="w-4 h-4" />
               </button>
               <button 
-                onClick={() => setScale(prev => Math.min(3, prev + 0.25))}
+                onClick={() => setScale(prev => Math.min(3, prev + 0.2))}
                 className="p-1 hover:bg-surface rounded text-text-main transition-colors"
                 title="Zoom In"
               >
                 <ZoomIn className="w-4 h-4" />
               </button>
             </div>
-            <div className="h-4 w-px bg-border-main" />
+          </div>
+          
+          <div className="flex items-center gap-2">
             <a 
               href={data} 
               target="_blank" 
               rel="noopener noreferrer"
               className="flex items-center gap-2 px-3 py-1 bg-brand-accent/10 hover:bg-brand-accent/20 text-brand-accent rounded-lg transition-all text-[10px] font-bold uppercase tracking-widest"
             >
-              <FileText className="w-3 h-3" />
-              Open Original
+              <Download className="w-3 h-3" />
+              Download
             </a>
           </div>
         </div>
       )}
 
-      {/* Canvas Area */}
-      <div className="flex-1 overflow-auto p-4 flex justify-center bg-surface/30 scrollbar-thin scrollbar-thumb-border-main scrollbar-track-transparent">
-        {objectUrl ? (
-          <iframe 
-            src={`${objectUrl}#toolbar=0&navpanes=0&scrollbar=0`}
-            className="w-full h-full rounded-lg border-none bg-white"
-            title="PDF Evidence Preview"
-          />
-        ) : loading ? (
-          <div className="flex flex-col items-center justify-center gap-4">
+      {/* Rendering Area */}
+      <div className="flex-1 overflow-auto p-4 flex justify-center bg-surface/30 scrollbar-thin scrollbar-thumb-border-main scrollbar-track-transparent relative">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center gap-4 absolute inset-0">
             <Loader2 className="w-8 h-8 text-brand-accent animate-spin" />
-            <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Rendering Evidence...</p>
+            <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Streaming Forensic Evidence...</p>
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center gap-4 p-10 text-center max-w-2xl w-full">
@@ -235,51 +176,27 @@ export default function PDFRenderer({ data, textContent }: PDFRendererProps) {
               <AlertTriangle className="w-8 h-8 text-red-500" />
             </div>
             <p className="text-text-main font-bold">Forensic Rendering Failed</p>
-            <p className="text-text-muted text-xs leading-relaxed mb-4">
-              {error.includes('Failed to fetch') 
-                ? 'Security Block (CORS): The browser blocked the direct fetch of this document. This usually happens when the storage bucket is not configured to allow cross-origin requests.' 
-                : error}
-            </p>
+            <p className="text-text-muted text-xs leading-relaxed mb-4">{error}</p>
             
-            <div className="flex flex-col gap-4 w-full items-center">
-              <div className="flex gap-4">
-                <a 
-                  href={data} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="px-6 py-2 bg-brand-accent text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-brand-accent/90 transition-all shadow-lg shadow-brand-accent/20"
-                >
-                  Open in New Tab
-                </a>
-                <button 
-                  onClick={() => window.location.reload()}
-                  className="px-6 py-2 border border-border-main text-text-muted rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-surface transition-all"
-                >
-                  Retry
-                </button>
-              </div>
-
-              {error.includes('Failed to fetch') && (
-                <div className="mt-4 p-4 bg-surface/80 border border-border-main rounded-xl text-left w-full">
-                  <p className="text-[9px] font-bold text-brand-accent uppercase tracking-widest mb-2">CORS Troubleshooting Guide</p>
-                  <p className="text-[10px] text-text-muted leading-relaxed">
-                    To fix this permanently, run the following command in your terminal using <code className="bg-surface px-1 rounded">gsutil</code>:
-                  </p>
-                  <pre className="mt-2 p-2 bg-bg-deep rounded text-[9px] text-text-main overflow-x-auto">
-                    {`gsutil cors set cors.json gs://buddynear.firebasestorage.app`}
-                  </pre>
-                  <p className="text-[10px] text-text-muted mt-2">
-                    Where <code className="bg-surface px-1 rounded">cors.json</code> contains:
-                    <code className="block mt-1 bg-bg-deep p-2 rounded">
-                      [{"{"}"origin": ["*"], "method": ["GET"], "maxAgeSeconds": 3600{"}"}]
-                    </code>
-                  </p>
-                </div>
-              )}
+            <div className="flex gap-4">
+              <a 
+                href={data} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="px-6 py-2 bg-brand-accent text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-brand-accent/90 transition-all shadow-lg shadow-brand-accent/20"
+              >
+                Open Original
+              </a>
+              <button 
+                onClick={() => window.location.reload()}
+                className="px-6 py-2 border border-border-main text-text-muted rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-surface transition-all"
+              >
+                Retry
+              </button>
             </div>
             
             {textContent && (
-              <div className="w-full bg-surface/50 p-6 rounded-xl border border-border-main text-left overflow-y-auto max-h-[400px] shadow-inner">
+              <div className="w-full mt-8 bg-surface/50 p-6 rounded-xl border border-border-main text-left overflow-y-auto max-h-[300px]">
                 <p className="text-[10px] font-bold text-brand-accent uppercase tracking-widest mb-4 flex items-center gap-2">
                   <FileText className="w-4 h-4" />
                   Recovered Text Content
@@ -291,7 +208,9 @@ export default function PDFRenderer({ data, textContent }: PDFRendererProps) {
             )}
           </div>
         ) : (
-          <canvas ref={canvasRef} className="shadow-2xl rounded-sm max-w-full h-auto" />
+          <div className="relative">
+            <canvas ref={canvasRef} className="shadow-2xl rounded-sm max-w-full h-auto bg-white" />
+          </div>
         )}
       </div>
     </div>
