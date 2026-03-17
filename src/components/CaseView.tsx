@@ -36,6 +36,7 @@ export default function CaseView({ caseId, onBack }: CaseViewProps) {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isChatting, setIsChatting] = useState(false);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [activeTab, setActiveTab] = useState<'summary' | 'legal_points' | 'timeline' | 'authenticity'>('summary');
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -215,6 +216,8 @@ export default function CaseView({ caseId, onBack }: CaseViewProps) {
       });
       
       const newDoc = { id: docRef.id, caseId, fileName: file.name, fileUrl: downloadURL, textContent: analysisContent, type: file.type, fileSize: file.size, userId: currentUserId, createdAt: new Date() } as Document;
+      setUploadSuccess(true);
+      setTimeout(() => setUploadSuccess(false), 3000);
       setActiveDoc(newDoc);
       handleAnalyze(newDoc, analysisContent, images);
     } catch (error) {
@@ -440,7 +443,7 @@ export default function CaseView({ caseId, onBack }: CaseViewProps) {
           </button>
             <label className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-lg font-semibold uppercase tracking-widest text-[10px] hover:bg-brand-primary/90 cursor-pointer shadow-lg shadow-brand-primary/10 transition-all">
             <Upload className="w-3 h-3" />
-            Upload Evidence
+            {uploadSuccess ? 'Evidence Authorized' : 'Upload Evidence'}
             <input type="file" className="hidden" accept=".pdf,.txt,.jpg,.jpeg,.png" onChange={handleFileUpload} />
           </label>
         </div>

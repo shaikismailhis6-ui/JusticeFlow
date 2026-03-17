@@ -3,7 +3,7 @@ import { db, auth, storage, handleFirestoreError, OperationType } from '../fireb
 import { collection, query, where, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Case } from '../types';
-import { Plus, Folder, Clock, ChevronRight, Trash2, Search, Edit2, Upload, FileText, X, Loader2, ShieldCheck } from 'lucide-react';
+import { Plus, Folder, Clock, ChevronRight, Trash2, Search, Edit2, Upload, FileText, X, Loader2, ShieldCheck, AlertCircle } from 'lucide-react';
 import { motion } from 'motion/react';
 import * as pdfjs from 'pdfjs-dist/build/pdf.mjs';
 import { analyzeLegalDocument } from '../services/gemini';
@@ -40,6 +40,8 @@ export default function Dashboard({ onSelectCase }: DashboardProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [processingMessage, setProcessingMessage] = useState<string | null>(null);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const currentUserId = auth.currentUser?.uid || (window as any)._localUser?.uid;
@@ -66,6 +68,7 @@ export default function Dashboard({ onSelectCase }: DashboardProps) {
     if (!newCaseTitle.trim() || !currentUserId) return;
 
     setProcessingMessage('Creating case record...');
+    setError(null);
     try {
       const caseRef = await addDoc(collection(db, 'cases'), {
         title: newCaseTitle,
@@ -156,13 +159,20 @@ export default function Dashboard({ onSelectCase }: DashboardProps) {
       setNewCaseTitle('');
       setNewCaseDescription('');
       setSelectedFile(null);
-      setShowNewCaseModal(false);
-      alert('Entry successful!');
-      onSelectCase(caseRef.id);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'cases');
+      setIsSuccess(true);
+      setProcessingMessage('Entry Successful');
+      
+      setTimeout(() => {
+        setShowNewCaseModal(false);
+        setIsSuccess(false);
+        onSelectCase(caseRef.id);
+      }, 1500);
+    } catch (err: any) {
+      console.error('Case creation failed:', err);
+      setError(err.message || 'Failed to create judicial record. Please verify your connection.');
+      handleFirestoreError(err, OperationType.CREATE, 'cases');
     } finally {
-      setProcessingMessage(null);
+      if (!isSuccess) setProcessingMessage(null);
     }
   };
 
@@ -206,7 +216,12 @@ export default function Dashboard({ onSelectCase }: DashboardProps) {
   );
 
   return (
-    <div className="space-y-8">
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      className="space-y-8"
+    >
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold text-text-main tracking-tight">Case Management</h2>
@@ -415,6 +430,13 @@ export default function Dashboard({ onSelectCase }: DashboardProps) {
                   </div>
                 </div>
               )}
+              
+              {error && (
+                <div className="p-4 bg-red-400/10 border border-red-400/20 rounded-xl flex items-center gap-3 text-red-400 text-xs">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  {error}
+                </div>
+              )}
 
               <div className="flex gap-3 pt-4">
                 <button
@@ -433,10 +455,18 @@ export default function Dashboard({ onSelectCase }: DashboardProps) {
                 </button>
                 <button
                   type="submit"
-                  disabled={!!processingMessage}
-                  className="flex-1 px-6 py-3 bg-brand-primary text-white font-semibold uppercase tracking-widest text-[10px] rounded-xl hover:bg-brand-primary/90 transition-all shadow-lg shadow-brand-primary/10 flex items-center justify-center gap-2 disabled:opacity-50"
+                  disabled={!!processingMessage || isSuccess}
+                  className={cn(
+                    "flex-1 px-6 py-3 font-semibold uppercase tracking-widest text-[10px] rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50",
+                    isSuccess ? "bg-green-500 text-white shadow-green-500/10" : "bg-brand-primary text-white shadow-brand-primary/10 hover:bg-brand-primary/90"
+                  )}
                 >
-                  {processingMessage ? (
+                  {isSuccess ? (
+                    <>
+                      <ShieldCheck className="w-4 h-4" />
+                      Entry Authorized
+                    </>
+                  ) : processingMessage ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
                       {processingMessage}
@@ -450,6 +480,6 @@ export default function Dashboard({ onSelectCase }: DashboardProps) {
           </motion.div>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }
