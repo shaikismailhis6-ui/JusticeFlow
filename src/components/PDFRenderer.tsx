@@ -224,7 +224,7 @@ export default function PDFRenderer({ data, textContent }: PDFRendererProps) {
                 Verified Content
               </div>
             </div>
-            <div className="font-serif text-sm text-text-main leading-relaxed whitespace-pre-wrap text-left pr-4">
+            <div className="font-serif text-sm text-text-main leading-relaxed whitespace-pre-wrap text-left pr-4 max-h-[400px] overflow-y-auto custom-scrollbar">
               {textContent}
             </div>
           </motion.div>

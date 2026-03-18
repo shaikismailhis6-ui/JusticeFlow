@@ -327,9 +327,9 @@ export default function Dashboard({ onSelectCase }: DashboardProps) {
 
         {filteredCases.length === 0 && (
           <div className="col-span-full py-24 text-center glass-card rounded-[3rem] border-dashed border-border-main">
-            <Gavel className="w-16 h-16 text-text-muted opacity-20 mx-auto mb-6" />
+            <Gavel className="w-16 h-16 text-brand-accent/30 mx-auto mb-6" />
             <h3 className="text-2xl font-bold text-text-main mb-2">{t('dashboard.noCases')}</h3>
-            <p className="text-text-muted font-medium tracking-wide">{t('dashboard.initializeFirst')}</p>
+            <p className="text-text-main font-semibold tracking-wide">{t('dashboard.initializeFirst')}</p>
           </div>
         )}
       </div>

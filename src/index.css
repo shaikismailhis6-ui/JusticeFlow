@@ -18,7 +18,7 @@
   --bg-deep: #f8fafc;
   --bg-surface: #ffffff;
   --text-main: #0f172a;
-  --text-muted: #64748b;
+  --text-muted: #475569;
   --border-main: #e2e8f0;
 }
 
@@ -26,7 +26,7 @@
   --bg-deep: #0f172a;
   --bg-surface: #1e293b;
   --text-main: #f1f5f9;
-  --text-muted: #94a3b8;
+  --text-muted: #cbd5e1;
   --border-main: #334155;
 }
 
@@ -57,5 +57,17 @@ body {
 
 .dark .brand-gradient {
   background: radial-gradient(circle at 50% 50%, var(--bg-deep) 0%, #000 100%);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-border-main rounded-full hover:bg-brand-accent/50 transition-colors;
 }
 

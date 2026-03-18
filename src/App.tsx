@@ -153,6 +153,7 @@ function AppContent() {
     return (
       <div className="min-h-screen brand-gradient flex flex-col items-center justify-center p-4 relative overflow-hidden">
         <div className="absolute top-8 right-8 z-50 flex items-center gap-4">
+          <LanguageSwitcher />
           <button
             onClick={toggleTheme}
             className="p-3 rounded-2xl bg-surface border border-border-main text-text-muted hover:text-brand-accent transition-all shadow-lg"
@@ -302,6 +303,8 @@ function AppContent() {
           >
             {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
           </button>
+
+          <LanguageSwitcher />
 
           <div className="flex items-center gap-4 pr-6 border-r border-border-main">
             <div className="text-right hidden md:block">

@@ -698,9 +698,9 @@ export default function CaseView({ caseId, onBack }: CaseViewProps) {
                             );
                           })}
                           {(!analysis?.evidence_audit || analysis.evidence_audit.length === 0) && (
-                            <div className="text-center py-24 text-text-muted opacity-20">
+                            <div className="text-center py-24 text-brand-accent/30">
                               <ShieldCheck className="w-24 h-24 mx-auto mb-6" />
-                              <p className="font-bold uppercase tracking-[0.3em] text-xs">{t('case.awaitingVisual')}</p>
+                              <p className="font-bold uppercase tracking-[0.3em] text-xs text-text-main">{t('case.awaitingVisual')}</p>
                             </div>
                           )}
                         </div>
@@ -720,9 +720,11 @@ export default function CaseView({ caseId, onBack }: CaseViewProps) {
 
               <div className="flex-1 overflow-y-auto p-8 space-y-6">
                 {chatMessages.length === 0 && (
-                  <div className="h-full flex flex-col items-center justify-center text-text-muted opacity-20">
-                    <MessageSquare className="w-16 h-16 mb-6" />
-                    <p className="font-semibold uppercase tracking-[0.2em] text-[10px] mb-8">{t('case.awaitingQuery')}</p>
+                  <div className="h-full flex flex-col items-center justify-center">
+                    <div className="flex flex-col items-center justify-center text-brand-accent/30 mb-8">
+                      <MessageSquare className="w-16 h-16 mb-6" />
+                      <p className="font-bold uppercase tracking-[0.2em] text-[10px] text-text-main">{t('case.awaitingQuery')}</p>
+                    </div>
                     
                     <div className="grid grid-cols-1 gap-3 w-full max-w-md">
                       {[
@@ -736,7 +738,7 @@ export default function CaseView({ caseId, onBack }: CaseViewProps) {
                           onClick={() => {
                             setChatInput(query);
                           }}
-                          className="text-left p-4 bg-surface border border-border-main rounded-xl text-xs text-text-muted hover:border-brand-accent/30 hover:text-text-main transition-all"
+                          className="text-left p-4 bg-surface border border-border-main rounded-xl text-xs text-text-main font-medium hover:border-brand-accent/50 hover:bg-brand-accent/5 transition-all shadow-sm"
                         >
                           {query}
                         </button>
